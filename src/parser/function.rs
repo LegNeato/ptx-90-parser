@@ -10,7 +10,7 @@ use crate::{
             alt, between, colon_p, comma_p, directive_exact_p, directive_p, identifier_p,
             integer_p, langle_p, lbrace_p, lparen_p, many, map, minus_p, optional,
             parse_signed_integer, parse_u32_literal, parse_unsigned_integer, plus_p, pure,
-            rangle_p, rbrace_p, register_p, rparen_p, semicolon_p, sep_by, sep_by1, seq, seq5,
+            rangle_p, rbrace_p, register_p, rparen_p, semicolon_p, sep_by, sep_by1, seq,
             skip_first, skip_second, skip_semicolon, string_literal_p, try_map, u32_p,
         },
     },
@@ -59,15 +59,17 @@ impl PtxParser for StatementDirective {
         let call_prototype = try_map(
             skip_semicolon(skip_first(
                 directive_exact_p("callprototype"),
-                seq5(
+                seq_n!(
                     return_spec_parser(),
+                    // Optional function name placeholder (underscore) between return spec and params
+                    optional(underscore_placeholder()),
                     parameter_list_parser(),
                     noreturn_parser(),
                     abi_preserve_parser(),
-                    abi_preserve_control_parser(),
+                    abi_preserve_control_parser()
                 ),
             )),
-            |(return_param, params, noreturn, abi_preserve, abi_preserve_control), span| {
+            |(return_param, _func_name, params, noreturn, abi_preserve, abi_preserve_control), span| {
                 let directive = CallPrototypeDirective {
                     return_param,
                     params,
@@ -167,10 +169,24 @@ impl PtxParser for FunctionStatement {
 
 fn return_spec_parser()
 -> impl Fn(&mut PtxTokenStream) -> Result<(Option<ParameterDirective>, Span), PtxParseError> {
-    alt(
+    // For .callprototype, the return spec can be:
+    // - `_` (underscore placeholder, no return)
+    // - `.param .type name` (bare parameter directive)
+    // - `(.param .type name)` (parenthesized parameter directive)
+    // - `(_)` (parenthesized underscore placeholder)
+    let bare_param = map(ParameterDirective::parse(), |param, _| Some(param));
+    let bare_underscore = map(underscore_placeholder(), |_, _| None);
+
+    let paren_inner = alt(
         map(ParameterDirective::parse(), |param, _| Some(param)),
         map(underscore_placeholder(), |_, _| None),
-    )
+    );
+    let parenthesized = map(
+        between(lparen_p(), rparen_p(), paren_inner),
+        |param, _| param,
+    );
+
+    alt!(parenthesized, bare_param, bare_underscore)
 }
 
 fn underscore_placeholder() -> impl Fn(&mut PtxTokenStream) -> Result<((), Span), PtxParseError> {
