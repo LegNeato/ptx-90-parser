@@ -278,6 +278,14 @@ impl PtxUnparser for StatementDirective {
                 push_space(tokens, spaced);
                 variable.unparse_tokens_mode(tokens, spaced);
             }
+            StatementDirective::Global {
+                directive: variable,
+                ..
+            } => {
+                push_directive(tokens, "global");
+                push_space(tokens, spaced);
+                variable.unparse_tokens_mode(tokens, spaced);
+            }
             StatementDirective::Pragma {
                 directive: pragma, ..
             } => {

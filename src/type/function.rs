@@ -243,6 +243,10 @@ pub enum StatementDirective {
         directive: VariableDirective,
         span: Span,
     },
+    Global {
+        directive: VariableDirective,
+        span: Span,
+    },
     Dwarf {
         directive: DwarfDirective,
         span: Span,

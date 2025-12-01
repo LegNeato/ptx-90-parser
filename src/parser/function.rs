@@ -99,12 +99,18 @@ impl PtxParser for StatementDirective {
             StatementDirective::Shared { directive }
         );
 
+        let global_stmt = mapc!(
+            skip_first(directive_exact_p("global"), VariableDirective::parse()),
+            StatementDirective::Global { directive }
+        );
+
         alt!(
             location,
             reg_stmt,
             local_stmt,
             param_stmt,
             shared_stmt,
+            global_stmt,
             branch_targets,
             call_targets,
             call_prototype,
