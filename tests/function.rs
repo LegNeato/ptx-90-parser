@@ -478,6 +478,32 @@ fn statement_directive<'a>(statement: &'a FunctionStatement) -> &'a StatementDir
     }
 }
 
+/// Test that .global declarations inside function bodies are parsed correctly.
+#[test]
+fn parses_global_declaration_in_function_body() {
+    // Simple global declaration
+    let simple_src = ".global .align 8 .b8 stack_slot_0[16];";
+    let simple = parse::<StatementDirective>(simple_src);
+    match &simple {
+        StatementDirective::Global { directive, .. } => {
+            assert_eq!(directive.name.val, "stack_slot_0");
+        }
+        other => panic!("expected Global directive, got {:?}", other),
+    }
+    assert_roundtrip::<StatementDirective>(simple_src);
+
+    // Global with different alignment
+    let aligned_src = ".global .align 16 .b8 stack_slot_1[32];";
+    let aligned = parse::<StatementDirective>(aligned_src);
+    match &aligned {
+        StatementDirective::Global { directive, .. } => {
+            assert_eq!(directive.name.val, "stack_slot_1");
+        }
+        other => panic!("expected Global directive, got {:?}", other),
+    }
+    assert_roundtrip::<StatementDirective>(aligned_src);
+}
+
 fn assert_statements_roundtrip(source: &str, statements: &[FunctionStatement]) {
     let original_tokens = tokenize_only(source);
     let mut unparsed_tokens = Vec::new();

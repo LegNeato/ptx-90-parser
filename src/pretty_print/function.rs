@@ -268,6 +268,13 @@ impl TreeDisplay for StatementDirective {
                 ))?;
                 f.field_with_child(true, "directive", directive, source)
             }
+            StatementDirective::Global { directive, span } => {
+                f.root(&format!(
+                    "StatementDirective::Global [{}]",
+                    f.format_raw(*span, source)
+                ))?;
+                f.field_with_child(true, "directive", directive, source)
+            }
             StatementDirective::Dwarf { directive, span } => {
                 f.root(&format!(
                     "StatementDirective::Dwarf [{}]",
