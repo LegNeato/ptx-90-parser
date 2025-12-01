@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use ptx_parser::tokenize;
 use ptx_parser::r#type::{
     AddressSize, FunctionStatement, Instruction, Module, ModuleDirective, ModuleInfoDirectiveKind,
-    instruction::Inst,
+    StatementDirective, instruction::Inst,
 };
 use ptx_parser::{PtxParser, PtxTokenStream};
 
@@ -372,5 +372,79 @@ fn test_parse_labels_and_predicates() {
             .as_ref()
             .expect("fifth instruction should have predicate");
         assert!(label_neg_pred.negated, "predicate should be negated");
+    });
+}
+
+#[test]
+fn test_parse_func_with_aligned_return_type() {
+    ptx_parser::run_with_large_stack(|| {
+    // Test that functions with aligned byte array return types can be parsed.
+    // This pattern is common in Rust code compiled for PTX where aggregate
+    // types are returned via aligned byte arrays.
+    let source = r#"
+.version 8.0
+.target sm_80
+.address_size 64
+
+.visible .func (.param .align 8 .b8 func_retval0[16]) test_func(.param .u64 param0)
+{
+    ret;
+}
+"#;
+
+    let tokens = tokenize(source).expect("tokenization should succeed");
+    let mut stream = PtxTokenStream::new(&tokens);
+    let (module, _) = Module::parse()(&mut stream).expect("module parsing should succeed for aligned return");
+
+    // Find the func function
+    let func1 = module
+        .directives
+        .iter()
+        .find_map(|d| match d {
+            ModuleDirective::FuncFunction {
+                directive: func, ..
+            } => Some(func),
+            _ => None,
+        })
+        .expect("should find func function");
+
+    assert_eq!(func1.name.val, "test_func");
+
+    // Check that the return type has alignment
+    let return_param1 = func1
+        .return_param
+        .as_ref()
+        .expect("function should have return parameter");
+
+    match return_param1 {
+        ptx_parser::r#type::ParameterDirective::Parameter { align, array, .. } => {
+            assert_eq!(*align, Some(8), "return parameter should have align 8");
+            assert_eq!(array.len(), 1, "return parameter should have one array dimension");
+            assert_eq!(array[0], Some(16), "array dimension should be 16");
+        }
+        _ => panic!("expected Parameter variant"),
+    }
+
+    // Test parsing a callprototype with parenthesized return type
+    // This is the format that ptxas requires and that Cranelift generates
+    let proto_src = ".callprototype (.param .s8 _) _ (.param .u64 _);";
+    let proto_tokens = tokenize(proto_src).expect("tokenization should succeed");
+    let mut proto_stream = PtxTokenStream::new(&proto_tokens);
+
+    match StatementDirective::parse()(&mut proto_stream) {
+        Ok((stmt, _)) => {
+            eprintln!("Parsed callprototype with parenthesized return");
+            match stmt {
+                StatementDirective::CallPrototype { directive, .. } => {
+                    assert!(directive.return_param.is_some(), "should have return param");
+                }
+                _ => panic!("expected CallPrototype"),
+            }
+        }
+        Err(e) => {
+            eprintln!("Failed to parse callprototype: {}", e);
+            panic!("callprototype with parenthesized return type parsing failed: {}", e);
+        }
+    }
     });
 }
