@@ -322,6 +322,7 @@ const DOC_EXAMPLE_INSTRUCTIONS: &[&str] = &[
     "wmma.load.a.sync.aligned.row.m8n8k32.s4 {x0}, [ptr];",
     "xor.b32  d,q,r;",
     "xor.b16  d,x,0x0001;",
+    "selp.f16  d,a,b,p;",
 ];
 
 #[test]

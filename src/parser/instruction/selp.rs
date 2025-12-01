@@ -4,19 +4,16 @@
 //! .type = { .b16, .b32, .b64,
 //! .u16, .u32, .u64,
 //! .s16, .s32, .s64,
-//! .f32, .f64 };
+//! .f16, .f32, .f64 };
 
 #![allow(unused)]
 
+use crate::{alt, ok, seq_n};
 use crate::parser::{
     PtxParseError, PtxParser, PtxTokenStream, Span,
-    util::{
-        between, comma_p, directive_p, exclamation_p, lbracket_p, lparen_p, map, minus_p, optional,
-        pipe_p, rbracket_p, rparen_p, semicolon_p, sep_by, string_p, try_map,
-    },
+    util::{comma_p, directive_p, exclamation_p, lbracket_p, lparen_p, minus_p, optional, pipe_p, rbracket_p, rparen_p, semicolon_p, sep_by, string_p, between, map, try_map},
 };
 use crate::r#type::common::*;
-use crate::{alt, ok, seq_n};
 
 pub mod section_0 {
     use super::*;
@@ -38,6 +35,7 @@ pub mod section_0 {
                 map(string_p(".s16"), |_, _span| Type::S16),
                 map(string_p(".s32"), |_, _span| Type::S32),
                 map(string_p(".s64"), |_, _span| Type::S64),
+                map(string_p(".f16"), |_, _span| Type::F16),
                 map(string_p(".f32"), |_, _span| Type::F32),
                 map(string_p(".f64"), |_, _span| Type::F64)
             )
@@ -72,4 +70,7 @@ pub mod section_0 {
             )
         }
     }
+
+
 }
+
